@@ -102,6 +102,7 @@ import {
 } from "@/components/ui/popover";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { SearchFilterGenerator } from "./search-filter-generator";
+import { SearchResultsFilter } from "@/components/search-results-filter"; // Add the import for the SearchResultsFilter component
 
 interface Agent {
   id: string;
@@ -230,6 +231,7 @@ export function SearchChat() {
   const { health, isServerDown } = useHealthCheck();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ContentItem[]>([]);
+  const [filteredResults, setFilteredResults] = useState<ContentItem[]>([]); // Add state for filtered results
   const [isLoading, setIsLoading] = useState(false);
   const [startDate, setStartDate] = useState<Date>(
     new Date(Date.now() - 24 * 3600000)
@@ -894,6 +896,7 @@ export function SearchChat() {
     setChatMessages([]);
     scrollToBottom();
     setResults([]);
+    setFilteredResults([]); // Reset filtered results
     setSimilarityThreshold(1); // Reset similarity threshold to 1
 
     try {
@@ -926,6 +929,7 @@ export function SearchChat() {
       }
 
       setResults(response.data);
+      setFilteredResults(response.data); // Initialize filtered results with all results
       setTotalResults(response.pagination.total);
 
       // Save search to history
@@ -981,6 +985,10 @@ export function SearchChat() {
     setEndDate(now);
   };
 
+  const handleFilteredResultsChange = (newFilteredResults: ContentItem[]) => {
+    setFilteredResults(newFilteredResults);
+  };
+
   const renderSearchResults = () => {
     if (isLoading) {
       return Array(3)
@@ -1006,8 +1014,14 @@ export function SearchChat() {
     }
 
     // First filter results based on hideDeselected setting
-    const visibleResults = results
-      .map((item, index) => ({ item, originalIndex: index }))
+    const visibleResults = filteredResults // Use filteredResults instead of results
+      .map((item, index) => {
+        // Find the original index in the full results array
+        const originalIndex = results.findIndex(
+          (r) => r === item
+        );
+        return { item, originalIndex };
+      })
       .filter(
         ({ originalIndex }) =>
           !hideDeselected || selectedResults.has(originalIndex)
@@ -1938,6 +1952,13 @@ export function SearchChat() {
             </div>
           </div>
         </div>
+      )}
+      {results.length > 0 && (
+        <SearchResultsFilter
+          results={results}
+          onFilteredResultsChange={handleFilteredResultsChange}
+          className="mt-4"
+        />
       )}
       <div className="space-y-4">
         {renderSearchResults()}
